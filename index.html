@@ -321,12 +321,19 @@
         
         // Clean ContactOut data
         function cleanContactOutData(rawData) {
+            console.log('Starting to clean ContactOut data...');
+            console.log('Raw data sample:', rawData[0]);
+            
             let maxPhones = 0;
             let allPhoneLists = [];
             
             rawData.forEach(row => {
                 const mainNumbers = extractPhoneNumbers(row['Phone Number']);
                 const otherNumbers = extractPhoneNumbers(row['Other Phone Numbers']);
+                
+                console.log('Processing:', row['First Name'], row['Last Name']);
+                console.log('  Main numbers:', mainNumbers);
+                console.log('  Other numbers:', otherNumbers);
                 
                 // Combine and remove duplicates
                 let allNumbers = [];
@@ -338,9 +345,13 @@
                     }
                 });
                 
+                console.log('  Combined:', allNumbers);
+                
                 allPhoneLists.push(allNumbers);
                 maxPhones = Math.max(maxPhones, allNumbers.length);
             });
+            
+            console.log('Max phone numbers found:', maxPhones);
             
             // Create cleaned data with phone_number columns
             const cleanedData = rawData.map((row, idx) => {
@@ -350,7 +361,7 @@
                     'First Name': row['First Name'] || '',
                     'Last Name': row['Last Name'] || '',
                     'Company': row['Company'] || '',
-                    'Job Title': String(row['Job Title']) || '',
+                    'Job Title': String(row['Job Title'] || ''),
                     'Location': row['Location'] || '',
                     'Industry': row['Industry'] || ''
                 };
@@ -362,6 +373,9 @@
                 
                 return cleaned;
             });
+            
+            console.log('Cleaned data sample:', cleanedData[0]);
+            console.log('Total cleaned records:', cleanedData.length);
             
             return cleanedData;
         }
@@ -415,9 +429,21 @@
                 // Step 2: Merge with Airscale
                 document.getElementById('statusArea').innerHTML = '<div class="status info">Step 2/2: Merging with Airscale...</div>';
                 
+                if (!cleanedContactOut || cleanedContactOut.length === 0) {
+                    throw new Error('No cleaned ContactOut data available');
+                }
+                
+                console.log('Cleaned ContactOut first record:', cleanedContactOut[0]);
+                
                 const phoneColumns = Object.keys(cleanedContactOut[0] || {}).filter(key => 
                     key.startsWith('phone_number_')
                 );
+                
+                console.log('Phone columns detected:', phoneColumns);
+                
+                if (phoneColumns.length === 0) {
+                    console.warn('WARNING: No phone columns found in cleaned data!');
+                }
                 
                 let matchedCount = 0;
                 
