@@ -490,14 +490,15 @@
                 key.startsWith('phone_number_')
             );
             
-            const mergedData = airscaleData.map((airscaleContact, index) => {
-                let match = manualMatches[index];
+            let matchedCount = 0;
+            
+            const mergedData = airscaleData.map((airscaleContact) => {
+                // Try to find match automatically
+                let match = findMatch(airscaleContact, contactoutData);
                 
-                if (!match) {
-                    match = findMatch(airscaleContact, contactoutData);
-                    if (match && match.multipleMatches) {
-                        match = null;
-                    }
+                // If multiple matches found, skip (don't use any)
+                if (match && match.multipleMatches) {
+                    match = null;
                 }
                 
                 const merged = { ...airscaleContact };
@@ -508,6 +509,7 @@
                 });
                 
                 if (match) {
+                    matchedCount++;
                     // Fill in phone numbers
                     phoneColumns.forEach(col => {
                         if (match[col]) {
@@ -551,10 +553,6 @@
             link.click();
             
             // Show stats
-            const matchedCount = mergedData.filter((row, idx) => {
-                return findMatch(airscaleData[idx], contactoutData) !== null || manualMatches[idx];
-            }).length;
-            
             document.getElementById('statusArea').innerHTML = '<div class="status success">✅ Merge complete! File downloaded.</div>';
             document.getElementById('statsArea').innerHTML = `
                 <div class="stats">
