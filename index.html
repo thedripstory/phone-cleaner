@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ContactOut Phone Cleaner</title>
+    <title>ContactOut Data Merger</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -14,11 +15,8 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #000000;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             padding: 20px;
         }
         
@@ -26,15 +24,26 @@
             background: white;
             border-radius: 20px;
             padding: 40px;
-            max-width: 600px;
-            width: 100%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 20px 60px rgba(255,0,0,0.3);
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo img {
+            max-width: 200px;
+            height: auto;
         }
         
         h1 {
-            color: #333;
+            color: #000000;
             margin-bottom: 10px;
             font-size: 28px;
+            font-weight: 700;
         }
         
         .subtitle {
@@ -43,29 +52,42 @@
             font-size: 14px;
         }
         
-        .upload-area {
-            border: 3px dashed #ddd;
-            border-radius: 15px;
-            padding: 40px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
             margin-bottom: 20px;
         }
         
-        .upload-area:hover {
-            border-color: #667eea;
-            background: #f8f9ff;
+        .upload-box {
+            border: 2px dashed #ddd;
+            border-radius: 15px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
         }
         
-        .upload-area.dragover {
-            border-color: #667eea;
-            background: #f0f2ff;
+        .upload-box:hover {
+            border-color: #FF0000;
+            background: #fff5f5;
+        }
+        
+        .upload-box.filled {
+            border-color: #4caf50;
+            background: #f1f8f4;
+        }
+        
+        .upload-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            display: block;
         }
         
         .upload-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
+            font-size: 36px;
+            margin-bottom: 10px;
         }
         
         input[type="file"] {
@@ -75,7 +97,7 @@
         button {
             width: 100%;
             padding: 15px;
-            background: #667eea;
+            background: #FF0000;
             color: white;
             border: none;
             border-radius: 10px;
@@ -86,10 +108,10 @@
             margin-top: 15px;
         }
         
-        button:hover {
-            background: #5568d3;
+        button:hover:not(:disabled) {
+            background: #CC0000;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 15px rgba(255, 0, 0, 0.4);
         }
         
         button:disabled {
@@ -123,6 +145,109 @@
             border: 1px solid #bee5eb;
         }
         
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .match-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .match-modal.active {
+            display: flex;
+        }
+        
+        .match-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .match-header {
+            margin-bottom: 20px;
+        }
+        
+        .match-header h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .contact-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .contact-card strong {
+            color: #FF0000;
+        }
+        
+        .match-options {
+            margin-top: 20px;
+        }
+        
+        .match-option {
+            background: white;
+            border: 2px solid #ddd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .match-option:hover {
+            border-color: #FF0000;
+            background: #fff5f5;
+        }
+        
+        .match-option.selected {
+            border-color: #FF0000;
+            background: #ffe5e5;
+        }
+        
+        .match-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .match-buttons button {
+            margin: 0;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #FF0000;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         .stats {
             background: #f8f9fa;
             padding: 20px;
@@ -130,15 +255,11 @@
             margin-top: 20px;
         }
         
-        .stats h3 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-        
         .stat-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, 1fr);
             gap: 15px;
+            margin-top: 15px;
         }
         
         .stat-item {
@@ -154,268 +275,315 @@
         .stat-value {
             font-size: 24px;
             font-weight: bold;
-            color: #667eea;
-        }
-        
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-            margin-right: 10px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            color: #FF0000;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📞 ContactOut Phone Cleaner</h1>
-        <p class="subtitle">Upload your Excel file to clean and organize phone numbers</p>
-        
-        <div class="upload-area" id="uploadArea">
-            <div class="upload-icon">📤</div>
-            <p id="uploadText"><strong>Click to upload</strong> or drag and drop</p>
-            <p style="font-size: 12px; color: #999; margin-top: 10px;">Excel files (.xlsx, .xls)</p>
+        <div class="logo">
+            <img src="https://pub-9317324318d04523b29b5dcb3ce98bef.r2.dev/logo-files/the-drip-story-black-logo.png" alt="The Drip Story">
         </div>
         
-        <input type="file" id="fileInput" accept=".xlsx,.xls">
+        <h1>📊 ContactOut Data Merger</h1>
+        <p class="subtitle">Merge Airscale and ContactOut data intelligently</p>
         
-        <button id="processBtn" disabled>Process File</button>
+        <div class="upload-section">
+            <div class="upload-box" id="airscaleBox">
+                <div class="upload-icon">📋</div>
+                <div class="upload-label">Airscale Export</div>
+                <p id="airscaleText" style="font-size: 12px; color: #999;">Click to upload CSV</p>
+                <input type="file" id="airscaleFile" accept=".csv">
+            </div>
+            
+            <div class="upload-box" id="contactoutBox">
+                <div class="upload-icon">📞</div>
+                <div class="upload-label">ContactOut Data</div>
+                <p id="contactoutText" style="font-size: 12px; color: #999;">Click to upload CSV/Excel</p>
+                <input type="file" id="contactoutFile" accept=".csv,.xlsx,.xls">
+            </div>
+        </div>
+        
+        <button id="mergeBtn" disabled>Merge Data</button>
         
         <div id="statusArea"></div>
         <div id="statsArea"></div>
     </div>
 
+    <div class="match-modal" id="matchModal">
+        <div class="match-content">
+            <div class="match-header">
+                <h2>⚠️ Manual Match Required</h2>
+                <p style="color: #666; font-size: 14px;">We couldn't automatically match this contact. Please select the correct match:</p>
+            </div>
+            
+            <div class="contact-card">
+                <strong>Airscale Contact:</strong>
+                <div id="unmatchedContact"></div>
+            </div>
+            
+            <div class="match-options" id="matchOptions"></div>
+            
+            <div class="match-buttons">
+                <button onclick="skipMatch()" style="background: #dc3545;">Skip This Contact</button>
+                <button onclick="confirmMatch()" id="confirmMatchBtn" disabled>Confirm Match</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const processBtn = document.getElementById('processBtn');
-        const uploadText = document.getElementById('uploadText');
-        const statusArea = document.getElementById('statusArea');
-        const statsArea = document.getElementById('statsArea');
-        
-        let selectedFile = null;
+        let airscaleData = null;
+        let contactoutData = null;
+        let airscaleFileName = '';
+        let selectedMatchIndex = null;
+        let currentUnmatchedIndex = 0;
+        let unmatchedContacts = [];
+        let manualMatches = {};
 
-        // Click to upload
-        uploadArea.addEventListener('click', () => fileInput.click());
-        
-        // File selected
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                selectedFile = e.target.files[0];
-                uploadText.innerHTML = `<strong>✓ ${selectedFile.name}</strong>`;
-                processBtn.disabled = false;
-                statusArea.innerHTML = '';
-                statsArea.innerHTML = '';
-            }
+        // File uploads
+        document.getElementById('airscaleBox').addEventListener('click', () => {
+            document.getElementById('airscaleFile').click();
         });
         
-        // Drag and drop
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
+        document.getElementById('contactoutBox').addEventListener('click', () => {
+            document.getElementById('contactoutFile').click();
         });
         
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
+        document.getElementById('airscaleFile').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            airscaleFileName = file.name;
+            const text = await file.text();
+            airscaleData = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+            
+            document.getElementById('airscaleBox').classList.add('filled');
+            document.getElementById('airscaleText').innerHTML = `<strong>✓ ${file.name}</strong><br>${airscaleData.length} contacts`;
+            checkReadyToMerge();
         });
         
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
+        document.getElementById('contactoutFile').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
             
-            if (e.dataTransfer.files.length > 0) {
-                selectedFile = e.dataTransfer.files[0];
-                fileInput.files = e.dataTransfer.files;
-                uploadText.innerHTML = `<strong>✓ ${selectedFile.name}</strong>`;
-                processBtn.disabled = false;
-                statusArea.innerHTML = '';
-                statsArea.innerHTML = '';
-            }
-        });
-
-        // Extract phone numbers function
-        function extractPhoneNumbers(phoneValue) {
-            if (!phoneValue || phoneValue === 'undefined' || String(phoneValue).trim() === '') {
-                return [];
-            }
-            
-            let phoneStr = String(phoneValue).trim();
-            let numbers = [];
-            
-            // Split by common delimiters
-            for (let delimiter of [',', ';', '\n', '/', '|']) {
-                if (phoneStr.includes(delimiter)) {
-                    numbers = phoneStr.split(delimiter).map(n => n.trim()).filter(n => n);
-                    break;
-                }
-            }
-            
-            // If no delimiters, split by + sign
-            if (numbers.length === 0) {
-                let parts = phoneStr.split('+');
-                numbers = [];
-                for (let part of parts) {
-                    if (part.trim()) {
-                        numbers.push('+' + part.trim());
-                    }
-                }
-                
-                if (numbers.length <= 1) {
-                    numbers = [phoneStr];
-                }
-            }
-            
-            // Clean and validate
-            let cleaned = [];
-            for (let num of numbers) {
-                num = num.trim();
-                num = num.replace(/\s+/g, ' ');
-                let digitCount = (num.match(/\d/g) || []).length;
-                if (digitCount >= 8) {
-                    cleaned.push(num);
-                }
-            }
-            
-            return cleaned;
-        }
-
-        // Process file
-        processBtn.addEventListener('click', async () => {
-            if (!selectedFile) return;
-            
-            processBtn.disabled = true;
-            processBtn.innerHTML = '<span class="spinner"></span>Processing...';
-            statusArea.innerHTML = '<div class="status info">Processing your file...</div>';
-            
-            try {
-                const data = await selectedFile.arrayBuffer();
+            if (file.name.endsWith('.csv')) {
+                const text = await file.text();
+                contactoutData = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+            } else {
+                const data = await file.arrayBuffer();
                 const workbook = XLSX.read(data);
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
-                
-                let allPhoneLists = [];
-                let maxPhones = 0;
-                
-                // Extract all phone numbers
-                jsonData.forEach(row => {
-                    let mainNumbers = extractPhoneNumbers(row['Phone Number']);
-                    let otherNumbers = extractPhoneNumbers(row['Other Phone Numbers']);
-                    
-                    // Combine and remove duplicates
-                    let allNumbers = [];
-                    let seen = new Set();
-                    
-                    [...mainNumbers, ...otherNumbers].forEach(num => {
-                        if (!seen.has(num)) {
-                            allNumbers.push(num);
-                            seen.add(num);
-                        }
+                contactoutData = XLSX.utils.sheet_to_json(sheet);
+            }
+            
+            document.getElementById('contactoutBox').classList.add('filled');
+            document.getElementById('contactoutText').innerHTML = `<strong>✓ ${file.name}</strong><br>${contactoutData.length} contacts`;
+            checkReadyToMerge();
+        });
+        
+        function checkReadyToMerge() {
+            document.getElementById('mergeBtn').disabled = !(airscaleData && contactoutData);
+        }
+        
+        // Smart matching algorithm
+        function findMatch(airscaleContact, contactoutData) {
+            const normalize = (str) => String(str || '').toLowerCase().trim();
+            
+            const airscaleCompany = normalize(airscaleContact['Company Name']);
+            const airscaleLast = normalize(airscaleContact['Last Name']);
+            const airscaleFirst = normalize(airscaleContact['First Name']);
+            
+            // Step 1: Match by company name
+            let matches = contactoutData.filter(c => 
+                normalize(c.Company) === airscaleCompany
+            );
+            
+            if (matches.length === 0) return null;
+            if (matches.length === 1) return matches[0];
+            
+            // Step 2: Filter by last name
+            let filtered = matches.filter(c => 
+                normalize(c['Last Name']) === airscaleLast
+            );
+            
+            if (filtered.length === 1) return filtered[0];
+            if (filtered.length > 1) matches = filtered;
+            
+            // Step 3: Filter by first name
+            filtered = matches.filter(c => 
+                normalize(c['First Name']) === airscaleFirst
+            );
+            
+            if (filtered.length === 1) return filtered[0];
+            
+            // Multiple matches or no matches - return null for manual matching
+            return matches.length > 0 ? { multipleMatches: matches } : null;
+        }
+        
+        // Merge process
+        document.getElementById('mergeBtn').addEventListener('click', async () => {
+            document.getElementById('mergeBtn').disabled = true;
+            document.getElementById('mergeBtn').innerHTML = '<span class="spinner"></span>Merging...';
+            document.getElementById('statusArea').innerHTML = '<div class="status info">Matching contacts...</div>';
+            
+            unmatchedContacts = [];
+            manualMatches = {};
+            
+            // Find unmatched contacts
+            airscaleData.forEach((contact, index) => {
+                const match = findMatch(contact, contactoutData);
+                if (!match || match.multipleMatches) {
+                    unmatchedContacts.push({
+                        index,
+                        contact,
+                        possibleMatches: match ? match.multipleMatches : []
                     });
-                    
-                    // Add + to numbers without it
-                    let fixedNumbers = allNumbers.map(num => {
-                        if (!num.startsWith('+') && /^\d+/.test(num)) {
-                            return '+' + num;
-                        }
-                        return num;
-                    });
-                    
-                    allPhoneLists.push(fixedNumbers);
-                    maxPhones = Math.max(maxPhones, fixedNumbers.length);
-                });
-                
-                // Create output data
-                let outputRows = [];
-                jsonData.forEach((row, idx) => {
-                    let phoneNumbers = allPhoneLists[idx];
-                    let outputRow = {
-                        'URL': row['Url'] || '',
-                        'First Name': row['First Name'] || '',
-                        'Last Name': row['Last Name'] || '',
-                        'Company': row['Company'] || '',
-                        'Job Title': String(row['Job Title'] || ''),
-                        'Location': row['Location'] || '',
-                        'Industry': row['Industry'] || ''
-                    };
-                    
-                    for (let i = 0; i < maxPhones; i++) {
-                        outputRow[`phone_number_${i + 1}`] = phoneNumbers[i] || '';
-                    }
-                    
-                    outputRows.push(outputRow);
-                });
-                
-                // Convert to CSV
-                let headers = ['URL', 'First Name', 'Last Name', 'Company', 'Job Title', 'Location', 'Industry'];
-                for (let i = 1; i <= maxPhones; i++) {
-                    headers.push(`phone_number_${i}`);
                 }
-                
-                let csvRows = [headers.join(',')];
-                outputRows.forEach(row => {
-                    let values = headers.map(h => {
-                        let val = String(row[h] || '');
-                        return val.includes(',') ? `"${val}"` : val;
-                    });
-                    csvRows.push(values.join(','));
-                });
-                
-                let csvContent = csvRows.join('\n');
-                
-                // Download
-                let blob = new Blob([csvContent], { type: 'text/csv' });
-                let url = URL.createObjectURL(blob);
-                let link = document.createElement('a');
-                link.href = url;
-                link.download = 'CLEANED_ContactOut_Data.csv';
-                link.click();
-                
-                // Show stats
-                let contactsWithMultiple = allPhoneLists.filter(p => p.length > 1).length;
-                let totalNumbers = allPhoneLists.reduce((sum, p) => sum + p.length, 0);
-                
-                statusArea.innerHTML = '<div class="status success">✅ Success! Your cleaned CSV has been downloaded.</div>';
-                statsArea.innerHTML = `
-                    <div class="stats">
-                        <h3>Processing Results</h3>
-                        <div class="stat-grid">
-                            <div class="stat-item">
-                                <div class="stat-label">Total Contacts</div>
-                                <div class="stat-value">${jsonData.length}</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-label">Total Numbers</div>
-                                <div class="stat-value">${totalNumbers}</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-label">Multiple Numbers</div>
-                                <div class="stat-value">${contactsWithMultiple}</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-label">Phone Columns</div>
-                                <div class="stat-value">${maxPhones}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                processBtn.innerHTML = 'Process Another File';
-                processBtn.disabled = false;
-                
-            } catch (error) {
-                statusArea.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
-                processBtn.innerHTML = 'Try Again';
-                processBtn.disabled = false;
+            });
+            
+            if (unmatchedContacts.length > 0) {
+                currentUnmatchedIndex = 0;
+                showMatchModal();
+            } else {
+                completeMerge();
             }
         });
+        
+        function showMatchModal() {
+            if (currentUnmatchedIndex >= unmatchedContacts.length) {
+                document.getElementById('matchModal').classList.remove('active');
+                completeMerge();
+                return;
+            }
+            
+            const unmatched = unmatchedContacts[currentUnmatchedIndex];
+            const contact = unmatched.contact;
+            
+            document.getElementById('unmatchedContact').innerHTML = `
+                <div><strong>Name:</strong> ${contact['First Name']} ${contact['Last Name']}</div>
+                <div><strong>Company:</strong> ${contact['Company Name']}</div>
+                <div><strong>Email:</strong> ${contact['Email'] || 'N/A'}</div>
+            `;
+            
+            const optionsHtml = unmatched.possibleMatches.length > 0
+                ? unmatched.possibleMatches.map((match, idx) => `
+                    <div class="match-option" onclick="selectMatch(${idx})">
+                        <div><strong>Name:</strong> ${match['First Name']} ${match['Last Name']}</div>
+                        <div><strong>Company:</strong> ${match.Company}</div>
+                        <div><strong>Location:</strong> ${match.Location || 'N/A'}</div>
+                    </div>
+                `).join('')
+                : '<p style="color: #999;">No similar contacts found in ContactOut data.</p>';
+            
+            document.getElementById('matchOptions').innerHTML = optionsHtml;
+            document.getElementById('matchModal').classList.add('active');
+            selectedMatchIndex = null;
+            document.getElementById('confirmMatchBtn').disabled = true;
+        }
+        
+        function selectMatch(index) {
+            document.querySelectorAll('.match-option').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.match-option')[index].classList.add('selected');
+            selectedMatchIndex = index;
+            document.getElementById('confirmMatchBtn').disabled = false;
+        }
+        
+        function confirmMatch() {
+            const unmatched = unmatchedContacts[currentUnmatchedIndex];
+            manualMatches[unmatched.index] = unmatched.possibleMatches[selectedMatchIndex];
+            currentUnmatchedIndex++;
+            showMatchModal();
+        }
+        
+        function skipMatch() {
+            currentUnmatchedIndex++;
+            showMatchModal();
+        }
+        
+        function completeMerge() {
+            // Get all phone number columns from contactout data
+            const phoneColumns = Object.keys(contactoutData[0] || {}).filter(key => 
+                key.startsWith('phone_number_')
+            );
+            
+            const mergedData = airscaleData.map((airscaleContact, index) => {
+                let match = manualMatches[index];
+                
+                if (!match) {
+                    match = findMatch(airscaleContact, contactoutData);
+                    if (match && match.multipleMatches) {
+                        match = null;
+                    }
+                }
+                
+                const merged = { ...airscaleContact };
+                
+                if (match) {
+                    // Add phone numbers
+                    phoneColumns.forEach(col => {
+                        merged[col] = match[col] || '';
+                    });
+                    
+                    // Add job title and location
+                    merged['Job Title'] = match['Job Title'] || airscaleContact['Job title'] || '';
+                    merged['Location'] = match['Location'] || airscaleContact['Company Location'] || '';
+                }
+                
+                return merged;
+            });
+            
+            // Generate CSV
+            const headers = Object.keys(mergedData[0]);
+            const csvRows = [headers.join(',')];
+            
+            mergedData.forEach(row => {
+                const values = headers.map(h => {
+                    const val = String(row[h] || '');
+                    return val.includes(',') ? `"${val}"` : val;
+                });
+                csvRows.push(values.join(','));
+            });
+            
+            const csvContent = csvRows.join('\n');
+            
+            // Download
+            const outputFileName = airscaleFileName.replace('.csv', '_MERGED.csv');
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = outputFileName;
+            link.click();
+            
+            // Show stats
+            const matchedCount = mergedData.filter((row, idx) => {
+                return findMatch(airscaleData[idx], contactoutData) !== null || manualMatches[idx];
+            }).length;
+            
+            document.getElementById('statusArea').innerHTML = '<div class="status success">✅ Merge complete! File downloaded.</div>';
+            document.getElementById('statsArea').innerHTML = `
+                <div class="stats">
+                    <h3>Merge Results</h3>
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Total Contacts</div>
+                            <div class="stat-value">${airscaleData.length}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Matched</div>
+                            <div class="stat-value">${matchedCount}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Phone Columns Added</div>
+                            <div class="stat-value">${phoneColumns.length}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('mergeBtn').innerHTML = 'Merge Another File';
+            document.getElementById('mergeBtn').disabled = false;
+        }
     </script>
 </body>
 </html>
