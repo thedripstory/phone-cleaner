@@ -446,10 +446,14 @@
                     
                     const merged = { ...airscaleContact };
                     
-                    // Always add phone columns
+                    // Always add phone columns (even if empty)
                     phoneColumns.forEach(col => {
                         merged[col] = '';
                     });
+                    
+                    // Always add Job Title and Location columns (even if empty)
+                    merged['Job Title'] = '';
+                    merged['Location'] = '';
                     
                     if (match) {
                         matchedCount++;
@@ -463,7 +467,7 @@
                             }
                         });
                         
-                        // Add job title and location - check both capitalizations
+                        // Fill in job title and location
                         merged['Job Title'] = match['Job Title'] || match['jobTitle'] || '';
                         merged['Location'] = match['Location'] || match['location'] || '';
                     }
