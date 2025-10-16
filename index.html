@@ -429,27 +429,8 @@
             document.getElementById('mergeBtn').innerHTML = '<span class="spinner"></span>Merging...';
             document.getElementById('statusArea').innerHTML = '<div class="status info">Matching contacts...</div>';
             
-            unmatchedContacts = [];
-            manualMatches = {};
-            
-            // Find unmatched contacts
-            airscaleData.forEach((contact, index) => {
-                const match = findMatch(contact, contactoutData);
-                if (!match || match.multipleMatches) {
-                    unmatchedContacts.push({
-                        index,
-                        contact,
-                        possibleMatches: match ? match.multipleMatches : []
-                    });
-                }
-            });
-            
-            if (unmatchedContacts.length > 0) {
-                currentUnmatchedIndex = 0;
-                showMatchModal();
-            } else {
-                completeMerge();
-            }
+            // Auto-skip unmatched - no manual matching UI
+            completeMerge();
         });
         
         function showMatchModal() {
@@ -521,15 +502,26 @@
                 
                 const merged = { ...airscaleContact };
                 
+                // Always add phone columns (empty if no match)
+                phoneColumns.forEach(col => {
+                    merged[col] = '';
+                });
+                
                 if (match) {
-                    // Add phone numbers
+                    // Fill in phone numbers
                     phoneColumns.forEach(col => {
-                        merged[col] = match[col] || '';
+                        if (match[col]) {
+                            merged[col] = match[col];
+                        }
                     });
                     
                     // Add job title and location
-                    merged['Job Title'] = match['Job Title'] || airscaleContact['Job title'] || '';
-                    merged['Location'] = match['Location'] || airscaleContact['Company Location'] || '';
+                    if (match['Job Title']) {
+                        merged['Job Title'] = match['Job Title'];
+                    }
+                    if (match['Location']) {
+                        merged['Location'] = match['Location'];
+                    }
                 }
                 
                 return merged;
