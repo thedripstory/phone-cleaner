@@ -148,93 +148,6 @@
             border: 1px solid #bee5eb;
         }
         
-        .status.warning {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
-        
-        .match-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .match-modal.active {
-            display: flex;
-        }
-        
-        .match-content {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-        
-        .match-header {
-            margin-bottom: 20px;
-        }
-        
-        .match-header h2 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-        
-        .contact-card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .contact-card strong {
-            color: #FF0000;
-        }
-        
-        .match-options {
-            margin-top: 20px;
-        }
-        
-        .match-option {
-            background: white;
-            border: 2px solid #ddd;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .match-option:hover {
-            border-color: #FF0000;
-            background: #fff5f5;
-        }
-        
-        .match-option.selected {
-            border-color: #FF0000;
-            background: #ffe5e5;
-        }
-        
-        .match-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        
-        .match-buttons button {
-            margin: 0;
-        }
-        
         .spinner {
             border: 3px solid #f3f3f3;
             border-top: 3px solid #FF0000;
@@ -313,35 +226,10 @@
         <div id="statsArea"></div>
     </div>
 
-    <div class="match-modal" id="matchModal">
-        <div class="match-content">
-            <div class="match-header">
-                <h2>⚠️ Manual Match Required</h2>
-                <p style="color: #666; font-size: 14px;">We couldn't automatically match this contact. Please select the correct match:</p>
-            </div>
-            
-            <div class="contact-card">
-                <strong>Airscale Contact:</strong>
-                <div id="unmatchedContact"></div>
-            </div>
-            
-            <div class="match-options" id="matchOptions"></div>
-            
-            <div class="match-buttons">
-                <button onclick="skipMatch()" style="background: #dc3545;">Skip This Contact</button>
-                <button onclick="confirmMatch()" id="confirmMatchBtn" disabled>Confirm Match</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         let airscaleData = null;
         let contactoutData = null;
         let airscaleFileName = '';
-        let selectedMatchIndex = null;
-        let currentUnmatchedIndex = 0;
-        let unmatchedContacts = [];
-        let manualMatches = {};
 
         // File uploads
         document.getElementById('airscaleBox').addEventListener('click', () => {
@@ -419,8 +307,8 @@
             
             if (filtered.length === 1) return filtered[0];
             
-            // Multiple matches or no matches - return null for manual matching
-            return matches.length > 0 ? { multipleMatches: matches } : null;
+            // Multiple matches - return null (auto-skip)
+            return null;
         }
         
         // Merge process
@@ -429,154 +317,110 @@
             document.getElementById('mergeBtn').innerHTML = '<span class="spinner"></span>Merging...';
             document.getElementById('statusArea').innerHTML = '<div class="status info">Matching contacts...</div>';
             
-            // Auto-skip unmatched - no manual matching UI
-            completeMerge();
-        });
-        
-        function showMatchModal() {
-            if (currentUnmatchedIndex >= unmatchedContacts.length) {
-                document.getElementById('matchModal').classList.remove('active');
-                completeMerge();
-                return;
-            }
-            
-            const unmatched = unmatchedContacts[currentUnmatchedIndex];
-            const contact = unmatched.contact;
-            
-            document.getElementById('unmatchedContact').innerHTML = `
-                <div><strong>Name:</strong> ${contact['First Name']} ${contact['Last Name']}</div>
-                <div><strong>Company:</strong> ${contact['Company Name']}</div>
-                <div><strong>Email:</strong> ${contact['Email'] || 'N/A'}</div>
-            `;
-            
-            const optionsHtml = unmatched.possibleMatches.length > 0
-                ? unmatched.possibleMatches.map((match, idx) => `
-                    <div class="match-option" onclick="selectMatch(${idx})">
-                        <div><strong>Name:</strong> ${match['First Name']} ${match['Last Name']}</div>
-                        <div><strong>Company:</strong> ${match.Company}</div>
-                        <div><strong>Location:</strong> ${match.Location || 'N/A'}</div>
-                    </div>
-                `).join('')
-                : '<p style="color: #999;">No similar contacts found in ContactOut data.</p>';
-            
-            document.getElementById('matchOptions').innerHTML = optionsHtml;
-            document.getElementById('matchModal').classList.add('active');
-            selectedMatchIndex = null;
-            document.getElementById('confirmMatchBtn').disabled = true;
-        }
-        
-        function selectMatch(index) {
-            document.querySelectorAll('.match-option').forEach(el => el.classList.remove('selected'));
-            document.querySelectorAll('.match-option')[index].classList.add('selected');
-            selectedMatchIndex = index;
-            document.getElementById('confirmMatchBtn').disabled = false;
-        }
-        
-        function confirmMatch() {
-            const unmatched = unmatchedContacts[currentUnmatchedIndex];
-            manualMatches[unmatched.index] = unmatched.possibleMatches[selectedMatchIndex];
-            currentUnmatchedIndex++;
-            showMatchModal();
-        }
-        
-        function skipMatch() {
-            currentUnmatchedIndex++;
-            showMatchModal();
-        }
-        
-        function completeMerge() {
-            // Get all phone number columns from contactout data
-            const phoneColumns = Object.keys(contactoutData[0] || {}).filter(key => 
-                key.startsWith('phone_number_')
-            );
-            
-            let matchedCount = 0;
-            
-            const mergedData = airscaleData.map((airscaleContact) => {
-                // Try to find match automatically
-                let match = findMatch(airscaleContact, contactoutData);
+            try {
+                // Get all phone number columns from contactout data
+                const phoneColumns = Object.keys(contactoutData[0] || {}).filter(key => 
+                    key.startsWith('phone_number_')
+                );
                 
-                // If multiple matches found, skip (don't use any)
-                if (match && match.multipleMatches) {
-                    match = null;
-                }
+                console.log('Phone columns found:', phoneColumns);
                 
-                const merged = { ...airscaleContact };
+                let matchedCount = 0;
                 
-                // Always add phone columns (empty if no match)
-                phoneColumns.forEach(col => {
-                    merged[col] = '';
-                });
-                
-                if (match) {
-                    matchedCount++;
-                    // Fill in phone numbers
+                const mergedData = airscaleData.map((airscaleContact) => {
+                    // Try to find match automatically
+                    let match = findMatch(airscaleContact, contactoutData);
+                    
+                    const merged = { ...airscaleContact };
+                    
+                    // Always add phone columns (empty if no match)
                     phoneColumns.forEach(col => {
-                        if (match[col]) {
-                            merged[col] = match[col];
-                        }
+                        merged[col] = '';
                     });
                     
-                    // Add job title and location
-                    if (match['Job Title']) {
-                        merged['Job Title'] = match['Job Title'];
+                    if (match) {
+                        matchedCount++;
+                        console.log('Match found for:', airscaleContact['First Name'], airscaleContact['Last Name']);
+                        
+                        // Fill in phone numbers
+                        phoneColumns.forEach(col => {
+                            if (match[col]) {
+                                merged[col] = match[col];
+                            }
+                        });
+                        
+                        // Add job title and location
+                        if (match['Job Title']) {
+                            merged['Job Title'] = match['Job Title'];
+                        }
+                        if (match['Location']) {
+                            merged['Location'] = match['Location'];
+                        }
+                    } else {
+                        console.log('No match for:', airscaleContact['First Name'], airscaleContact['Last Name']);
                     }
-                    if (match['Location']) {
-                        merged['Location'] = match['Location'];
-                    }
-                }
-                
-                return merged;
-            });
-            
-            // Generate CSV
-            const headers = Object.keys(mergedData[0]);
-            const csvRows = [headers.join(',')];
-            
-            mergedData.forEach(row => {
-                const values = headers.map(h => {
-                    const val = String(row[h] || '');
-                    return val.includes(',') ? `"${val}"` : val;
+                    
+                    return merged;
                 });
-                csvRows.push(values.join(','));
-            });
-            
-            const csvContent = csvRows.join('\n');
-            
-            // Download
-            const outputFileName = airscaleFileName.replace('.csv', '_MERGED.csv');
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = outputFileName;
-            link.click();
-            
-            // Show stats
-            document.getElementById('statusArea').innerHTML = '<div class="status success">✅ Merge complete! File downloaded.</div>';
-            document.getElementById('statsArea').innerHTML = `
-                <div class="stats">
-                    <h3>Merge Results</h3>
-                    <div class="stat-grid">
-                        <div class="stat-item">
-                            <div class="stat-label">Total Contacts</div>
-                            <div class="stat-value">${airscaleData.length}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Matched</div>
-                            <div class="stat-value">${matchedCount}</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Phone Columns Added</div>
-                            <div class="stat-value">${phoneColumns.length}</div>
+                
+                console.log('Merged data sample:', mergedData[0]);
+                console.log('Total columns in merged data:', Object.keys(mergedData[0]).length);
+                
+                // Generate CSV
+                const headers = Object.keys(mergedData[0]);
+                const csvRows = [headers.join(',')];
+                
+                mergedData.forEach(row => {
+                    const values = headers.map(h => {
+                        const val = String(row[h] || '');
+                        return val.includes(',') ? `"${val}"` : val;
+                    });
+                    csvRows.push(values.join(','));
+                });
+                
+                const csvContent = csvRows.join('\n');
+                
+                // Download
+                const outputFileName = airscaleFileName.replace('.csv', '_MERGED.csv');
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = outputFileName;
+                link.click();
+                
+                // Show stats
+                document.getElementById('statusArea').innerHTML = '<div class="status success">✅ Merge complete! File downloaded.</div>';
+                document.getElementById('statsArea').innerHTML = `
+                    <div class="stats">
+                        <h3>Merge Results</h3>
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">Total Contacts</div>
+                                <div class="stat-value">${airscaleData.length}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Matched</div>
+                                <div class="stat-value">${matchedCount}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Phone Columns Added</div>
+                                <div class="stat-value">${phoneColumns.length}</div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            
-            document.getElementById('mergeBtn').innerHTML = 'Merge Another File';
-            document.getElementById('mergeBtn').disabled = false;
-        }
+                `;
+                
+                document.getElementById('mergeBtn').innerHTML = 'Merge Another File';
+                document.getElementById('mergeBtn').disabled = false;
+                
+            } catch (error) {
+                console.error('Error during merge:', error);
+                document.getElementById('statusArea').innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+                document.getElementById('mergeBtn').innerHTML = 'Try Again';
+                document.getElementById('mergeBtn').disabled = false;
+            }
+        });
     </script>
 </body>
 </html>
