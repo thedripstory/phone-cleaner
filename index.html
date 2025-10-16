@@ -444,16 +444,15 @@
                 const mergedData = airscaleData.map((airscaleContact) => {
                     let match = findMatch(airscaleContact, cleanedContactOut);
                     
+                    // Start with Airscale data but DELETE old Job title and Company Location
                     const merged = { ...airscaleContact };
+                    delete merged['Job title'];
+                    delete merged['Company Location'];
                     
                     // Always add phone columns (even if empty)
                     phoneColumns.forEach(col => {
                         merged[col] = '';
                     });
-                    
-                    // Always add Job Title and Location columns (even if empty)
-                    merged['Job Title'] = '';
-                    merged['Location'] = '';
                     
                     if (match) {
                         matchedCount++;
@@ -467,9 +466,13 @@
                             }
                         });
                         
-                        // Fill in job title and location
+                        // Fill in job title and location from ContactOut
                         merged['Job Title'] = match['Job Title'] || match['jobTitle'] || '';
                         merged['Location'] = match['Location'] || match['location'] || '';
+                    } else {
+                        // No match - still add empty columns
+                        merged['Job Title'] = '';
+                        merged['Location'] = '';
                     }
                     
                     return merged;
