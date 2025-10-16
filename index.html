@@ -448,6 +448,8 @@
                     const merged = { ...airscaleContact };
                     delete merged['Job title'];
                     delete merged['Company Location'];
+                    delete merged['job title']; // lowercase version
+                    delete merged['company location']; // lowercase version
                     
                     // Always add phone columns (even if empty)
                     phoneColumns.forEach(col => {
