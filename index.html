@@ -331,10 +331,6 @@
                 const mainNumbers = extractPhoneNumbers(row['Phone Number']);
                 const otherNumbers = extractPhoneNumbers(row['Other Phone Numbers']);
                 
-                console.log('Processing:', row['First Name'], row['Last Name']);
-                console.log('  Main numbers:', mainNumbers);
-                console.log('  Other numbers:', otherNumbers);
-                
                 // Combine and remove duplicates
                 let allNumbers = [];
                 let seen = new Set();
@@ -344,8 +340,6 @@
                         seen.add(num);
                     }
                 });
-                
-                console.log('  Combined:', allNumbers);
                 
                 allPhoneLists.push(allNumbers);
                 maxPhones = Math.max(maxPhones, allNumbers.length);
@@ -460,12 +454,7 @@
                     if (match) {
                         matchedCount++;
                         
-                        console.log('Match found:', {
-                            airscale: airscaleContact['First Name'] + ' ' + airscaleContact['Last Name'],
-                            contactout: match['First Name'] + ' ' + match['Last Name'],
-                            jobTitle: match['Job Title'],
-                            location: match['Location']
-                        });
+                        console.log('Match found:', match);
                         
                         // Fill in phone numbers
                         phoneColumns.forEach(col => {
@@ -474,9 +463,9 @@
                             }
                         });
                         
-                        // Add job title and location - ALWAYS overwrite with ContactOut data
-                        merged['Job Title'] = match['Job Title'] || '';
-                        merged['Location'] = match['Location'] || '';
+                        // Add job title and location - check both capitalizations
+                        merged['Job Title'] = match['Job Title'] || match['jobTitle'] || '';
+                        merged['Location'] = match['Location'] || match['location'] || '';
                     }
                     
                     return merged;
