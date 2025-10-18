@@ -449,11 +449,9 @@
                     if (match) {
                         matchedCount++;
                         
-                        // Fill in phone numbers
+                        // Fill in phone numbers - ALWAYS copy, even if empty
                         phoneColumns.forEach(col => {
-                            if (match[col]) {
-                                merged[col] = match[col];
-                            }
+                            merged[col] = match[col] !== undefined ? match[col] : '';
                         });
                         
                         // Fill in job title and location from ContactOut
