@@ -443,17 +443,13 @@
                 document.getElementById('statusArea').innerHTML = '<div class="status info">Step 1/2: Cleaning ContactOut data...</div>';
                 const cleanedContactOut = cleanContactOutData(rawContactoutData);
                 
-                // DEBUG: Show first cleaned record with Nic Taylor
-                const nicInCleaned = cleanedContactOut.find(c => 
-                    c['First Name'] === 'Nic' && c['Last Name'] === 'Taylor'
-                );
+                // DEBUG: Show sample cleaned records
+                let debugHTML = '<div class="debug-box"><h4>🔍 DEBUG: Cleaned ContactOut Sample (First 3 Records)</h4>';
+                debugHTML += '<pre>' + JSON.stringify(cleanedContactOut.slice(0, 3), null, 2) + '</pre>';
                 
-                let debugHTML = '<div class="debug-box"><h4>🔍 DEBUG: Cleaned ContactOut Data</h4>';
-                if (nicInCleaned) {
-                    debugHTML += '<pre>' + JSON.stringify(nicInCleaned, null, 2) + '</pre>';
-                } else {
-                    debugHTML += '<p>Nic Taylor not found in cleaned data!</p>';
-                }
+                // Show all names in cleaned data
+                debugHTML += '<h4 style="margin-top: 15px;">All Names in Cleaned Data:</h4>';
+                debugHTML += '<pre>' + cleanedContactOut.map(c => `${c['First Name']} ${c['Last Name']} (${c.Company})`).join('\n') + '</pre>';
                 debugHTML += '</div>';
                 document.getElementById('debugArea').innerHTML = debugHTML;
                 
