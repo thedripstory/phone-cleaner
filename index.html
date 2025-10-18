@@ -148,6 +148,12 @@
             border: 1px solid #bee5eb;
         }
         
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
         .spinner {
             border: 3px solid #f3f3f3;
             border-top: 3px solid #FF0000;
@@ -193,6 +199,29 @@
             font-weight: bold;
             color: #FF0000;
         }
+
+        .debug-box {
+            background: #fff9e6;
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .debug-box h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .debug-box pre {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
     </style>
 </head>
 <body>
@@ -201,7 +230,7 @@
             <img src="https://pub-9317324318d04523b29b5dcb3ce98bef.r2.dev/logo-files/the-drip-story-black-logo.png" alt="The Drip Story">
         </div>
         
-        <h1>📊 ContactOut Processor</h1>
+        <h1>📊 ContactOut Processor (Debug Mode)</h1>
         <p class="subtitle">Clean ContactOut data and merge with Airscale automatically</p>
         
         <div class="upload-section">
@@ -223,6 +252,7 @@
         <button id="processBtn" disabled>Process & Merge</button>
         
         <div id="statusArea"></div>
+        <div id="debugArea"></div>
         <div id="statsArea"></div>
     </div>
 
@@ -371,13 +401,13 @@
             const normalize = (str) => String(str || '')
                 .toLowerCase()
                 .trim()
-                .replace(/[^a-z0-9]/g, ''); // Remove all special chars, spaces, punctuation
+                .replace(/[^a-z0-9]/g, '');
             
             const airscaleCompany = normalize(airscaleContact['Company Name']);
             const airscaleLast = normalize(airscaleContact['Last Name']);
             const airscaleFirst = normalize(airscaleContact['First Name']);
             
-            // Step 1: Match by company name (fuzzy - remove spaces/special chars)
+            // Step 1: Match by company name
             let matches = contactoutData.filter(c => 
                 normalize(c.Company) === airscaleCompany
             );
@@ -400,7 +430,6 @@
             
             if (filtered.length === 1) return filtered[0];
             
-            // Multiple matches - return null (auto-skip)
             return null;
         }
         
@@ -414,6 +443,20 @@
                 document.getElementById('statusArea').innerHTML = '<div class="status info">Step 1/2: Cleaning ContactOut data...</div>';
                 const cleanedContactOut = cleanContactOutData(rawContactoutData);
                 
+                // DEBUG: Show first cleaned record with Nic Taylor
+                const nicInCleaned = cleanedContactOut.find(c => 
+                    c['First Name'] === 'Nic' && c['Last Name'] === 'Taylor'
+                );
+                
+                let debugHTML = '<div class="debug-box"><h4>🔍 DEBUG: Cleaned ContactOut Data</h4>';
+                if (nicInCleaned) {
+                    debugHTML += '<pre>' + JSON.stringify(nicInCleaned, null, 2) + '</pre>';
+                } else {
+                    debugHTML += '<p>Nic Taylor not found in cleaned data!</p>';
+                }
+                debugHTML += '</div>';
+                document.getElementById('debugArea').innerHTML = debugHTML;
+                
                 // Step 2: Merge with Airscale
                 document.getElementById('statusArea').innerHTML = '<div class="status info">Step 2/2: Merging with Airscale...</div>';
                 
@@ -426,22 +469,21 @@
                 );
                 
                 if (phoneColumns.length === 0) {
-                    console.warn('WARNING: No phone columns found in cleaned data!');
+                    document.getElementById('statusArea').innerHTML += '<div class="status warning">⚠️ Warning: No phone columns found!</div>';
                 }
                 
                 let matchedCount = 0;
+                let nicDebug = null;
                 
                 const mergedData = airscaleData.map((airscaleContact) => {
                     let match = findMatch(airscaleContact, cleanedContactOut);
                     
-                    // Start with Airscale data but DELETE old Job title and Company Location
                     const merged = { ...airscaleContact };
                     delete merged['Job title'];
                     delete merged['Company Location'];
                     delete merged['job title'];
                     delete merged['company location'];
                     
-                    // Always add phone columns (even if empty)
                     phoneColumns.forEach(col => {
                         merged[col] = '';
                     });
@@ -449,22 +491,47 @@
                     if (match) {
                         matchedCount++;
                         
-                        // Fill in phone numbers - ALWAYS copy, even if empty
+                        // DEBUG: Capture Nic Taylor match
+                        if (match['First Name'] === 'Nic' && match['Last Name'] === 'Taylor') {
+                            nicDebug = {
+                                airscaleContact: airscaleContact,
+                                matchFound: match,
+                                phoneColumnsCopying: {}
+                            };
+                            
+                            phoneColumns.forEach(col => {
+                                nicDebug.phoneColumnsCopying[col] = match[col];
+                            });
+                        }
+                        
                         phoneColumns.forEach(col => {
                             merged[col] = match[col] !== undefined ? match[col] : '';
                         });
                         
-                        // Fill in job title and location from ContactOut
                         merged['Job Title'] = match['Job Title'] || match['jobTitle'] || '';
                         merged['Location'] = match['Location'] || match['location'] || '';
                     } else {
-                        // No match - still add empty columns
                         merged['Job Title'] = '';
                         merged['Location'] = '';
                     }
                     
                     return merged;
                 });
+                
+                // Show Nic Taylor merge debug
+                if (nicDebug) {
+                    let debugHTML = '<div class="debug-box"><h4>🔍 DEBUG: Nic Taylor Match & Merge</h4>';
+                    debugHTML += '<pre>' + JSON.stringify(nicDebug, null, 2) + '</pre>';
+                    
+                    // Show final merged record
+                    const nicInMerged = mergedData.find(c => 
+                        c['First Name'] === 'Nic' && c['Last Name'] === 'Taylor'
+                    );
+                    debugHTML += '<h4 style="margin-top: 15px;">Final Merged Record:</h4>';
+                    debugHTML += '<pre>' + JSON.stringify(nicInMerged, null, 2) + '</pre>';
+                    debugHTML += '</div>';
+                    document.getElementById('debugArea').innerHTML += debugHTML;
+                }
                 
                 // Generate CSV
                 const headers = Object.keys(mergedData[0]);
