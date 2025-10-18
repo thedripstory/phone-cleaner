@@ -321,9 +321,6 @@
         
         // Clean ContactOut data
         function cleanContactOutData(rawData) {
-            console.log('Starting to clean ContactOut data...');
-            console.log('Raw data sample:', rawData[0]);
-            
             let maxPhones = 0;
             let allPhoneLists = [];
             
@@ -344,8 +341,6 @@
                 allPhoneLists.push(allNumbers);
                 maxPhones = Math.max(maxPhones, allNumbers.length);
             });
-            
-            console.log('Max phone numbers found:', maxPhones);
             
             // Create cleaned data with phone_number columns
             const cleanedData = rawData.map((row, idx) => {
@@ -368,21 +363,21 @@
                 return cleaned;
             });
             
-            console.log('Cleaned data sample:', cleanedData[0]);
-            console.log('Total cleaned records:', cleanedData.length);
-            
             return cleanedData;
         }
         
-        // Smart matching algorithm
+        // Smart matching algorithm with fuzzy matching
         function findMatch(airscaleContact, contactoutData) {
-            const normalize = (str) => String(str || '').toLowerCase().trim();
+            const normalize = (str) => String(str || '')
+                .toLowerCase()
+                .trim()
+                .replace(/[^a-z0-9]/g, ''); // Remove all special chars, spaces, punctuation
             
             const airscaleCompany = normalize(airscaleContact['Company Name']);
             const airscaleLast = normalize(airscaleContact['Last Name']);
             const airscaleFirst = normalize(airscaleContact['First Name']);
             
-            // Step 1: Match by company name
+            // Step 1: Match by company name (fuzzy - remove spaces/special chars)
             let matches = contactoutData.filter(c => 
                 normalize(c.Company) === airscaleCompany
             );
@@ -418,7 +413,6 @@
                 // Step 1: Clean ContactOut data
                 document.getElementById('statusArea').innerHTML = '<div class="status info">Step 1/2: Cleaning ContactOut data...</div>';
                 const cleanedContactOut = cleanContactOutData(rawContactoutData);
-                console.log('Cleaned ContactOut data:', cleanedContactOut.length, 'contacts');
                 
                 // Step 2: Merge with Airscale
                 document.getElementById('statusArea').innerHTML = '<div class="status info">Step 2/2: Merging with Airscale...</div>';
@@ -427,13 +421,9 @@
                     throw new Error('No cleaned ContactOut data available');
                 }
                 
-                console.log('Cleaned ContactOut first record:', cleanedContactOut[0]);
-                
                 const phoneColumns = Object.keys(cleanedContactOut[0] || {}).filter(key => 
                     key.startsWith('phone_number_')
                 );
-                
-                console.log('Phone columns detected:', phoneColumns);
                 
                 if (phoneColumns.length === 0) {
                     console.warn('WARNING: No phone columns found in cleaned data!');
@@ -448,8 +438,8 @@
                     const merged = { ...airscaleContact };
                     delete merged['Job title'];
                     delete merged['Company Location'];
-                    delete merged['job title']; // lowercase version
-                    delete merged['company location']; // lowercase version
+                    delete merged['job title'];
+                    delete merged['company location'];
                     
                     // Always add phone columns (even if empty)
                     phoneColumns.forEach(col => {
@@ -458,8 +448,6 @@
                     
                     if (match) {
                         matchedCount++;
-                        
-                        console.log('Match found:', match);
                         
                         // Fill in phone numbers
                         phoneColumns.forEach(col => {
@@ -479,9 +467,6 @@
                     
                     return merged;
                 });
-                
-                console.log('Merged data:', mergedData.length, 'contacts');
-                console.log('Matched:', matchedCount);
                 
                 // Generate CSV
                 const headers = Object.keys(mergedData[0]);
