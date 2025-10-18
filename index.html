@@ -313,7 +313,8 @@
             let cleaned = [];
             for (let num of numbers) {
                 num = num.trim();
-                num = num.replace(/\s+/g, ' ');
+                // REMOVE ALL SPACES from phone numbers
+                num = num.replace(/\s+/g, '');
                 let digitCount = (num.match(/\d/g) || []).length;
                 if (digitCount >= 8) {
                     // Add + if missing
@@ -374,41 +375,159 @@
             return cleanedData;
         }
         
-        // Smart matching algorithm with fuzzy matching
-        function findMatch(airscaleContact, contactoutData) {
-            const normalize = (str) => String(str || '')
+        // Advanced normalization function that handles ALL special characters
+        function normalizeForMatching(str) {
+            if (!str) return '';
+            
+            return String(str)
                 .toLowerCase()
                 .trim()
+                // Convert accented characters to base characters
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                // Replace Nordic special characters
+                .replace(/ø/g, 'o')
+                .replace(/æ/g, 'ae')
+                .replace(/å/g, 'a')
+                .replace(/ö/g, 'o')
+                .replace(/ä/g, 'a')
+                .replace(/ü/g, 'u')
+                .replace(/é/g, 'e')
+                .replace(/è/g, 'e')
+                .replace(/ê/g, 'e')
+                .replace(/à/g, 'a')
+                .replace(/â/g, 'a')
+                .replace(/ñ/g, 'n')
+                // Remove ALL non-alphanumeric characters (spaces, hyphens, apostrophes, etc)
                 .replace(/[^a-z0-9]/g, '');
+        }
+        
+        // Calculate similarity score between two strings (0-100)
+        function similarityScore(str1, str2) {
+            if (!str1 || !str2) return 0;
             
-            const airscaleCompany = normalize(airscaleContact['Company Name']);
-            const airscaleLast = normalize(airscaleContact['Last Name']);
-            const airscaleFirst = normalize(airscaleContact['First Name']);
+            str1 = normalizeForMatching(str1);
+            str2 = normalizeForMatching(str2);
             
-            // Step 1: Match by company name
-            let matches = contactoutData.filter(c => 
-                normalize(c.Company) === airscaleCompany
-            );
+            if (str1 === str2) return 100;
+            if (str1.includes(str2) || str2.includes(str1)) return 80;
+            
+            const longer = str1.length > str2.length ? str1 : str2;
+            const shorter = str1.length > str2.length ? str2 : str1;
+            
+            // Check how much of shorter string appears in longer string
+            let matches = 0;
+            for (let i = 0; i < shorter.length; i++) {
+                if (longer.includes(shorter.charAt(i))) matches++;
+            }
+            
+            return Math.round((matches / longer.length) * 100);
+        }
+        
+        // Smart matching algorithm with bulletproof fuzzy matching
+        function findMatch(airscaleContact, contactoutData) {
+            const airscaleCompany = normalizeForMatching(airscaleContact['Company Name']);
+            const airscaleCompanyRaw = (airscaleContact['Company Name'] || '').toLowerCase().trim();
+            const airscaleDomain = (airscaleContact['Company domain'] || '').toLowerCase().replace(/^www\./, '').split('.')[0];
+            const airscaleLast = normalizeForMatching(airscaleContact['Last Name']);
+            const airscaleFirst = normalizeForMatching(airscaleContact['First Name']);
+            
+            // STEP 1: Try exact company match
+            let matches = contactoutData.filter(c => {
+                const coCompany = normalizeForMatching(c.Company);
+                return coCompany === airscaleCompany || 
+                       coCompany.includes(airscaleCompany) ||
+                       airscaleCompany.includes(coCompany);
+            });
+            
+            // STEP 2: If no company match, try fuzzy company matching (50%+ similarity)
+            if (matches.length === 0 && airscaleCompany) {
+                matches = contactoutData.filter(c => {
+                    const coCompany = c.Company || '';
+                    const score = similarityScore(airscaleCompanyRaw, coCompany);
+                    return score >= 50;
+                });
+            }
+            
+            // STEP 3: If still no match, try domain-based matching
+            if (matches.length === 0 && airscaleDomain) {
+                matches = contactoutData.filter(c => {
+                    const coCompany = normalizeForMatching(c.Company);
+                    // Check if domain base name appears in company name
+                    return coCompany.includes(airscaleDomain) || 
+                           airscaleDomain.includes(coCompany.substring(0, Math.min(5, coCompany.length)));
+                });
+            }
             
             if (matches.length === 0) return null;
             if (matches.length === 1) return matches[0];
             
-            // Step 2: Filter by last name
-            let filtered = matches.filter(c => 
-                normalize(c['Last Name']) === airscaleLast
-            );
+            // STEP 4: Score each match by name similarity
+            let scored = matches.map(contact => {
+                const coLast = normalizeForMatching(contact['Last Name']);
+                const coFirst = normalizeForMatching(contact['First Name']);
+                
+                let score = 0;
+                
+                // Last name matching (most important)
+                if (coLast === airscaleLast) {
+                    score += 100; // Perfect match
+                } else if (coLast.includes(airscaleLast) || airscaleLast.includes(coLast)) {
+                    score += 50; // Partial match
+                } else if (levenshteinDistance(coLast, airscaleLast) <= 2) {
+                    score += 30; // Close match (1-2 char difference)
+                }
+                
+                // First name matching
+                if (coFirst === airscaleFirst) {
+                    score += 100; // Perfect match
+                } else if (coFirst.includes(airscaleFirst) || airscaleFirst.includes(coFirst)) {
+                    score += 50; // Partial match
+                } else if (levenshteinDistance(coFirst, airscaleFirst) <= 2) {
+                    score += 30; // Close match
+                }
+                
+                return { contact, score };
+            });
             
-            if (filtered.length === 1) return filtered[0];
-            if (filtered.length > 1) matches = filtered;
+            // Sort by score and get highest
+            scored.sort((a, b) => b.score - a.score);
             
-            // Step 3: Filter by first name
-            filtered = matches.filter(c => 
-                normalize(c['First Name']) === airscaleFirst
-            );
-            
-            if (filtered.length === 1) return filtered[0];
+            // Accept if score is high enough (at least 50 = decent match)
+            // Lowered from 100 to allow fuzzy company matches with partial name matches
+            if (scored[0].score >= 50) {
+                return scored[0].contact;
+            }
             
             return null;
+        }
+        
+        // Levenshtein distance for fuzzy string matching
+        function levenshteinDistance(str1, str2) {
+            const matrix = [];
+            
+            for (let i = 0; i <= str2.length; i++) {
+                matrix[i] = [i];
+            }
+            
+            for (let j = 0; j <= str1.length; j++) {
+                matrix[0][j] = j;
+            }
+            
+            for (let i = 1; i <= str2.length; i++) {
+                for (let j = 1; j <= str1.length; j++) {
+                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            
+            return matrix[str2.length][str1.length];
         }
         
         // Main process
